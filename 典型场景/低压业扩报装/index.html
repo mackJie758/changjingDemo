@@ -1385,6 +1385,8 @@
   <script src="/a_js/YPTAPI.js"></script>
   <script src="/a_js/jquery.js"></script>
   <script src="/a_js/moment.js"></script>
+  <script src="./js/lowVoltageTodo.js?v=20260930"></script>
+  <script src="./js/lowVoltageOrderJump.js?v=20261105"></script>
   <div id="app">
 
     <div class="out-content">
@@ -1854,7 +1856,6 @@
         dagdHasOverdue() { return this.hasOverdueInList(this.dagdlist); },
       },
       created() {
-        window.BrowserAction("sgHideBrowerserOpenPage", "http://emss20.md.sgcc.com.cn");
         BrowserAction('sgHideBrowerserOpenPage','http://25.73.0.175:18083/portal/index.html#')
         BrowserAction('sgHideBrowerserOpenPage', 'http://isc.md.sgcc.com.cn:17001/isc_sso/federation?sso=http://iscsso.sgcc.com.cn/isc_sso&target=http://20.1.59.23:18080/authLogin?redirectUrl=http://uvmp.sgcc.com.cn/uvmp-web/factoryLayout/index.html#home')
 
@@ -1874,28 +1875,25 @@
         this.now = new Date();
         // 当前时间前一个月
         this.oneMonthAgo = new Date(this.now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        const runAllDataRequests = () => {
-          this.getdata();
-          this.getdata1();
-          this.getdata2();
-          this.getdata3();
-          this.getdata4();
-          this.getdata5();
-          this.getdata6();
-          this.getdata7();
-          this.getdata8();
-        };
-
-        runAllDataRequests();
-        const intervalId = setInterval(runAllDataRequests, 3000);
-        setTimeout(() => {
-          clearInterval(intervalId);
-        }, 15000);
+        this._lowVoltageClient = LowVoltageTodo.createClient({
+          onChange: (states) => {
+            states.forEach((node) => {
+              this[node.key] = node.status === 'success' ? node.rows.length : 0;
+              this[node.list] = node.status === 'success' ? node.rows : [];
+            });
+          }
+        });
+        this._lowVoltageClient.refresh();
       },
       async mounted() {
         window.mac = this;
         this.updateClock();
         this.clockTimer = setInterval(() => this.updateClock(), 1000);
+      },
+      beforeDestroy() {
+        if (this._orderJump) this._orderJump.dispose();
+        if (this._lowVoltageClient) this._lowVoltageClient.dispose();
+        clearInterval(this.clockTimer);
       },
       methods: {
         // 更新时钟
@@ -1951,9 +1949,14 @@
         handlePopupItemClick(event, item) {
           event.stopPropagation();
           this.closePopup();
-          const itemstr = JSON.stringify(item)
-          let menuPath = `http://emss20.md.sgcc.com.cn^(function getItem(){localStorage.setItem('tiaozhuan','td');localStorage.setItem('popupItem','${itemstr}')})()`;
-          this.openUrl(menuPath);
+          if (!this._orderJump) this._orderJump = LowVoltageOrderJump.create({
+            onResult: (result) => {
+              if (result.status !== 'written') {
+                this.$message({ type: 'warning', message: LowVoltageOrderJump.message(result.status) });
+              }
+            }
+          });
+          this._orderJump.open(item);
         },
         // 判断是否超时（recTime 超过36小时）
         isOverdue(recTime) {
@@ -1966,381 +1969,6 @@
         // 判断列表中是否存在超期数据
         hasOverdueInList(list) {
           return list && list.length && list.some(item => this.isOverdue(item.recTime));
-        },
-        getdata() {
-          window.oderlist = (data) => {
-            this.smfu = data.length;
-            this.smfulist = data || [];
-          };
-          let callback = `fetch('http://25.73.2.220:31702/emss-cmnf-common-front/member/workOrderQuery/getWorkOrderToDoList',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json;charset=UTF-8',
-                "Accept":'application/json, text/plain, */*',
-                'Auth_token':sessionStorage.token
-            },
-            body:JSON.stringify({
-              "wkOrderNo": "",
-              "wkOrderType": "00",
-              "procCodeList": [
-                "BAC_0102600",
-                "BAC_0100200",
-                "BAC_0100400"
-              ],
-              "stepCodeList": [    
-                  'BAC_0100414',
-                  'BAC_0100213'
-              ],
-              "handleID": "",
-                   "pageNo": "1",
-              "pageSize": "20",
-              "initUsers": [],
-              "busAttrName": "",
-              "busAttrNo": "",
-              "workItemStats": [],
-              "orderByCol": "",
-              "orderSort": "",
-              "cmprType": ""
-            })
-          }).then(res => res.json()).then(data => {
-            __prototype__('sgBrowserExcuteJsCode', '${location.href}', \`window.oderlist(\${JSON.stringify(data.data)})\`, 'show');
-          })
-          `;
-          window.BrowserAction("sgBrowserExcuteJsCodeByArea", "http://emss20.md.sgcc.com.cn", callback, "hide");
-        },
-        getdata1() {
-          window.oderlist1 = (data) => {
-            this.htqc = data.length;
-            this.htqclist = data || [];
-          };
-          let callback = `fetch('http://25.73.2.220:31702/emss-cmnf-common-front/member/workOrderQuery/getWorkOrderToDoList',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json;charset=UTF-8',
-                "Accept":'application/json, text/plain, */*',
-                'Auth_token':sessionStorage.token
-            },
-            body:JSON.stringify({
-              "wkOrderNo": "",
-              "wkOrderType": "00",
-              "procCodeList": [
-                "BAC_0102600",
-                "BAC_0100200",
-                "BAC_0100400"
-              ],
-              "stepCodeList": [    
-                  'BAC_0100204',
-                  'BAC_0102608',
-
-              ],
-              "handleID": "",
-              "initUsers": [],
-                 "pageNo": "1",
-              "pageSize": "20",
-              "busAttrName": "",
-              "busAttrNo": "",
-              "workItemStats": [],
-              "orderByCol": "",
-              "orderSort": "",
-              "cmprType": ""
-            })
-          }).then(res => res.json()).then(data => {
-            __prototype__('sgBrowserExcuteJsCode', '${location.href}', \`window.oderlist1(\${JSON.stringify(data.data)})\`, 'show');
-          })
-          `;
-          window.BrowserAction("sgBrowserExcuteJsCodeByArea", "http://emss20.md.sgcc.com.cn", callback, "hide");
-        },
-        getdata2() {
-          window.oderlist2 = (data) => {
-            this.jlsb = data.length;
-            this.jlsblist = data || [];
-          };
-          let callback = `fetch('http://25.73.2.220:31702/emss-cmnf-common-front/member/workOrderQuery/getWorkOrderToDoList',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json;charset=UTF-8',
-                "Accept":'application/json, text/plain, */*',
-                'Auth_token':sessionStorage.token
-            },
-            body:JSON.stringify({
-              "wkOrderNo": "",
-              "wkOrderType": "00",
-              "procCodeList": [
-                "BAC_0102600",
-                "BAC_0100200",
-                "BAC_0100400"
-              ],
-              "stepCodeList": [    
-                  'BAC_0100409',
-                  'BAC_0100205',
-                  'BAC_0102606',
-              ],
-              "handleID": "",
-                 "pageNo": "1",
-              "pageSize": "20",
-              "initUsers": [],
-              "busAttrName": "",
-              "busAttrNo": "",
-              "workItemStats": [],
-              "orderByCol": "",
-              "orderSort": "",
-              "cmprType": ""
-            })
-          }).then(res => res.json()).then(data => {
-            __prototype__('sgBrowserExcuteJsCode', '${location.href}', \`window.oderlist2(\${JSON.stringify(data.data)})\`, 'show');
-          })
-          `;
-          window.BrowserAction("sgBrowserExcuteJsCodeByArea", "http://emss20.md.sgcc.com.cn", callback, "hide");
-        },
-        getdata3() {
-          window.oderlist3 = (data) => {
-            this.ptgc = data.length;
-            this.ptgclist = data || [];
-          };
-          let callback = `fetch('http://25.73.2.220:31702/emss-cmnf-common-front/member/workOrderQuery/getWorkOrderToDoList',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json;charset=UTF-8',
-                "Accept":'application/json, text/plain, */*',
-                'Auth_token':sessionStorage.token
-            },
-            body:JSON.stringify({
-              "wkOrderNo": "",
-              "wkOrderType": "00",
-              "procCodeList": [
-                "BAC_0102600",
-                "BAC_0100200",
-                "BAC_0100400"
-              ],
-              "stepCodeList": [    
-                  'BAC_0100419',
-                  'BAC_0100224',
-              ],
-              "handleID": "",
-              "initUsers": [],
-                 "pageNo": "1",
-              "pageSize": "20",
-              "busAttrName": "",
-              "busAttrNo": "",
-              "workItemStats": [],
-              "orderByCol": "",
-              "orderSort": "",
-              "cmprType": ""
-            })
-          }).then(res => res.json()).then(data => {
-            __prototype__('sgBrowserExcuteJsCode', '${location.href}', \`window.oderlist3(\${JSON.stringify(data.data)})\`, 'show');
-          })
-          `;
-          window.BrowserAction("sgBrowserExcuteJsCodeByArea", "http://emss20.md.sgcc.com.cn", callback, "hide");
-        },
-        getdata4() {
-          window.oderlist4 = (data) => {
-            this.zbjd = data.length;
-            this.zbjdlist = data || [];
-          };
-          let callback = `fetch('http://25.73.2.220:31702/emss-cmnf-common-front/member/workOrderQuery/getWorkOrderToDoList',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json;charset=UTF-8',
-                "Accept":'application/json, text/plain, */*',
-                'Auth_token':sessionStorage.token
-            },
-            body:JSON.stringify({
-              "wkOrderNo": "",
-              "wkOrderType": "00",
-              "procCodeList": [
-                "BAC_0102600",
-                "BAC_0100200",
-                "BAC_0100400"
-              ],
-              "stepCodeList": [    
-                  'BAC_0100410',
-                  'BAC_0100209',
-                  'BAC_0102611',
-              ],
-              "handleID": "",
-              "pageNo": "1",
-              "pageSize": "20",
-              "initUsers": [],
-              "busAttrName": "",
-              "busAttrNo": "",
-              "workItemStats": [],
-              "orderByCol": "",
-              "orderSort": "",
-              "cmprType": ""
-            })
-          }).then(res => res.json()).then(data => {
-            __prototype__('sgBrowserExcuteJsCode', '${location.href}', \`window.oderlist4(\${JSON.stringify(data.data)})\`, 'show');
-          })
-          `;
-          window.BrowserAction("sgBrowserExcuteJsCodeByArea", "http://emss20.md.sgcc.com.cn", callback, "hide");
-        },
-        getdata5() {
-          window.oderlist5 = (data) => {
-            this.kjtb = data.length;
-            this.kjtblist = data || [];
-          };
-          let callback = `fetch('http://25.73.2.220:31702/emss-cmnf-common-front/member/workOrderQuery/getWorkOrderToDoList',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json;charset=UTF-8',
-                "Accept":'application/json, text/plain, */*',
-                'Auth_token':sessionStorage.token
-            },
-            body:JSON.stringify({
-              "wkOrderNo": "",
-              "wkOrderType": "00",
-              "procCodeList": [
-                "BAC_0102600",
-                "BAC_0100200",
-                "BAC_0100400"
-              ],
-              "stepCodeList": [    
-                  'BAC_0102618'
-              ],
-              "handleID": "",
-              "pageNo": "1",
-              "pageSize": "20",
-              "initUsers": [],
-              "busAttrName": "",
-              "busAttrNo": "",
-              "workItemStats": [],
-              "orderByCol": "",
-              "orderSort": "",
-              "cmprType": ""
-            })
-          }).then(res => res.json()).then(data => {
-            __prototype__('sgBrowserExcuteJsCode', '${location.href}', \`window.oderlist5(\${JSON.stringify(data.data)})\`, 'show');
-          })
-          `;
-          window.BrowserAction("sgBrowserExcuteJsCodeByArea", "http://emss20.md.sgcc.com.cn", callback, "hide");
-        },
-        getdata6() {
-          window.oderlist6 = (data) => {
-            this.xxgd = data.length;
-            this.xxgdlist = data || [];
-            this.xxgdlist2 = data || [];
-          };
-          let callback = `fetch('http://25.73.2.220:31702/emss-cmnf-common-front/member/workOrderQuery/getWorkOrderToDoList',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json;charset=UTF-8',
-                "Accept":'application/json, text/plain, */*',
-                'Auth_token':sessionStorage.token
-            },
-            body:JSON.stringify({
-              "wkOrderNo": "",
-              "wkOrderType": "00",
-              "procCodeList": [
-                "BAC_0102600",
-                "BAC_0100200",
-                "BAC_0100400"
-              ],
-              "stepCodeList": [    
-                  'BAC_0100215',
-                  'BAC_0100411',
-                  'BAC_0102616',
-              ],
-              "handleID": "",
-              "initUsers": [],
-                 "pageNo": "1",
-              "pageSize": "20",
-              "busAttrName": "",
-              "busAttrNo": "",
-              "workItemStats": [],
-              "orderByCol": "",
-              "orderSort": "",
-              "cmprType": ""
-            })
-          }).then(res => res.json()).then(data => {
-            __prototype__('sgBrowserExcuteJsCode', '${location.href}', \`window.oderlist6(\${JSON.stringify(data.data)})\`, 'show');
-          })
-          `;
-          window.BrowserAction("sgBrowserExcuteJsCodeByArea", "http://emss20.md.sgcc.com.cn", callback, "hide");
-        },
-        getdata7() {
-          window.oderlist7 = (data) => {
-            this.dagd = data.length;
-            this.dagdlist = data || [];
-          };
-          let callback = `fetch('http://25.73.2.220:31702/emss-cmnf-common-front/member/workOrderQuery/getWorkOrderToDoList',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json;charset=UTF-8',
-                "Accept":'application/json, text/plain, */*',
-                'Auth_token':sessionStorage.token
-            },
-            body:JSON.stringify({
-              "wkOrderNo": "",
-              "wkOrderType": "00",
-              "procCodeList": [
-                "BAC_0102600",
-                "BAC_0100200",
-                "BAC_0100400"
-              ],
-              "stepCodeList": [    
-                  'BAC_0100407',
-                  'BAC_0100212',
-                  'BAC_01026122',
-              ],
-              "handleID": "",
-              "initUsers": [],
-              "busAttrName": "",
-                 "pageNo": "1",
-              "pageSize": "20",
-              "busAttrNo": "",
-              "workItemStats": [],
-              "orderByCol": "",
-              "orderSort": "",
-              "cmprType": ""
-            })
-          }).then(res => res.json()).then(data => {
-            __prototype__('sgBrowserExcuteJsCode', '${location.href}', \`window.oderlist7(\${JSON.stringify(data.data)})\`, 'show');
-          })
-          `;
-          window.BrowserAction("sgBrowserExcuteJsCodeByArea", "http://emss20.md.sgcc.com.cn", callback, "hide");
-        },
-        getdata8() {
-          window.oderlist8 = (data) => {
-            this.ywsl = data.length;
-            this.ywsllist = data || [];
-          };
-          let callback = `fetch('http://25.73.2.220:31702/emss-cmnf-common-front/member/workOrderQuery/getWorkOrderToDoList',{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json;charset=UTF-8',
-                "Accept":'application/json, text/plain, */*',
-                'Auth_token':sessionStorage.token
-            },
-            body:JSON.stringify({
-              "wkOrderNo": "",
-              "wkOrderType": "00",
-              "procCodeList": [
-                "BAC_0102600",
-                "BAC_0100200",
-                "BAC_0100400"
-              ],
-              "stepCodeList": [    
-                  'BAC_0100408',
-                  'BAC_0100216',
-
-              ],
-              "handleID": "",
-              "initUsers": [],
-              "busAttrName": "",
-                 "pageNo": "1",
-              "pageSize": "20",
-              "busAttrNo": "",
-              "workItemStats": [],
-              "orderByCol": "",
-              "orderSort": "",
-              "cmprType": ""
-            })
-          }).then(res => res.json()).then(data => {
-            __prototype__('sgBrowserExcuteJsCode', '${location.href}', \`window.oderlist8(\${JSON.stringify(data.data)})\`, 'show');
-          })
-          `;
-          window.BrowserAction("sgBrowserExcuteJsCodeByArea", "http://emss20.md.sgcc.com.cn", callback, "hide");
         },
         pathurlopen(menuPath, type) {
           let [pageUrl, execCode] = menuPath.split("^");
